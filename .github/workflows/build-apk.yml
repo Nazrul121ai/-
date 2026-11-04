@@ -1,0 +1,88 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Arrange files
+        run: |
+          [ -f app.zip ] || { echo "MISSING FILE: app.zip"; exit 1; }
+          unzip -o app.zip
+          mkdir -p www/fonts www/cloud www/paid www/community
+          for f in index.html style.css data.js geo.js i18n.js app.js manifest.webmanifest sw.js icon-192.png icon-512.png; do [ -f "$f" ] && mv "$f" www/; done
+          mv NotoSansBengali-*.ttf OFL.txt www/fonts/ 2>/dev/null || true
+          for f in firebase-config.js cloud.js; do [ -f "$f" ] && mv "$f" www/cloud/; done
+          for f in courses.js paid.js; do [ -f "$f" ] && mv "$f" www/paid/; done
+          [ -f social.js ] && mv social.js www/community/
+          echo "--- www ---"; find www -type f | sort
+          for f in www/index.html www/app.js www/data.js www/i18n.js www/style.css www/cloud/cloud.js www/cloud/firebase-config.js www/paid/paid.js www/paid/courses.js www/community/social.js www/fonts/NotoSansBengali-400.ttf www/fonts/NotoSansBengali-600.ttf www/fonts/NotoSansBengali-700.ttf package.json capacitor.config.json; do
+            [ -f "$f" ] || { echo "MISSING FILE: $f"; exit 1; }
+          done
+
+      - name: Publish website copy (gh-pages branch)
+        continue-on-error: true
+        run: |
+          rm -rf /tmp/site && cp -r www /tmp/site && touch /tmp/site/.nojekyll
+          cd /tmp/site
+          git init -q -b gh-pages
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add -A
+          git commit -qm "web build"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Apply app icon
+        run: |
+          RES=android/app/src/main/res
+          rm -rf $RES/mipmap-anydpi-v26
+          for d in $RES/mipmap-*dpi; do
+            [ -f ic_launcher.png ] && cp ic_launcher.png $d/ic_launcher.png
+            [ -f ic_launcher_round.png ] && cp ic_launcher_round.png $d/ic_launcher_round.png
+            rm -f $d/ic_launcher_foreground.png
+          done
+
+      - name: Sync web files
+        run: npx cap sync android
+
+      - name: Notification permissions
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q POST_NOTIFICATIONS $M || sed -i 's#</manifest>#    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>\n</manifest>#' $M
+          grep -n "uses-permission" $M
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: chalok-bhai-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
