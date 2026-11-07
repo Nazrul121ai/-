@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#074733">
+<title>চালক ভাই</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app"></div>
+<script src="data.js"></script>
+<script src="geo.js"></script>
+<script src="i18n.js"></script>
+<script src="cloud/firebase-config.js"></script>
+<script src="cloud/cloud.js"></script>
+<script src="paid/courses.js"></script>
+<script src="paid/paid.js"></script>
+<script src="community/social.js"></script>
+<script src="app.js"></script>
+<script>
+// কম্পিউটার/ব্রাউজারে ইনস্টল ও অফলাইন চলার জন্য (ফোনের অ্যাপে এটি লাগে না)
+try { var _n = window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform();
+  if (!_n && "serviceWorker" in navigator && /^https?:$/.test(location.protocol) && location.hostname !== "localhost") navigator.serviceWorker.register("sw.js"); } catch (e) {}
+</script>
+</body>
+</html>
